@@ -1,0 +1,96 @@
+---
+title: "Exploratory Analysis of U.S. Chronic Disease Indicators"
+author: "McKenzie Reese"
+date: "2026-02-19"
+output: html_document
+---
+
+## Introduction
+
+The U.S. Chronic Disease Indicators (CDI) dataset is a publicly available resource compiled by the Centers for Disease Control and Prevention (CDC). It contains over 300,000 records tracking more than 100 chronic disease indicators across all 50 U.S. states, the District of Columbia, and U.S. territories. Each record includes information on the indicator topic, data source, geographic location, stratification (such as sex and race/ethnicity), and a corresponding data value with confidence intervals where available. The dataset spans multiple years and draws from sources such as the Behavioral Risk Factor Surveillance System (BRFSS) and U.S. Cancer Statistics.
+
+This analysis focuses on the cancer-related indicators within the CDI dataset. The objectives are to (1) summarize the average cancer-related indicator values across U.S. states and territories, and (2) examine geographic variation in invasive cancer incidence rates to identify states with the highest and lowest burdens.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(janitor)
+library(kableExtra)
+```
+
+```{r load-data}
+cdi <- read_csv("https://data.cdc.gov/api/views/hksd-2xuw/rows.csv?accessType=DOWNLOAD") |> 
+  clean_names()
+
+glimpse(cdi) 
+```
+
+```{r filter-cancer}
+cancer_data <- cdi |> 
+  filter(str_detect(topic, "Cancer"))
+
+unique(cancer_data$question)
+```
+
+## Summary Table
+
+```{r summary-table}
+summary_table <- cancer_data |> 
+  filter(!is.na(data_value)) |> 
+  group_by(location_desc) |> 
+  summarise(
+    mean_value = mean(data_value, na.rm = TRUE),
+    n_indicators = n()
+  ) |> 
+  arrange(desc(mean_value)) |> 
+  slice_head(n = 10)
+
+summary_table |> 
+  kbl(
+    caption = "Top 10 States by Average Cancer-Related Indicator Value",
+    col.names = c("State", "Average Value", "Number of Indicators"),
+    digits = 2
+  ) |> 
+  kable_styling(full_width = FALSE)
+```
+
+Table 1 shows the ten states and territories with the highest average cancer-related indicator values in the CDI dataset. It is important to note that the average value is computed across all cancer indicators for a given location, which includes both raw counts (e.g., total number of cancer cases) and rate-based measures (e.g., per 100,000 population). Because large-population states like California, Texas, and Florida contribute high raw case counts, their averages are inflated relative to smaller states. Puerto Rico and the United States aggregate entry appear at the top for similar reasons. The number of indicators column reflects how many non-missing records contributed to each average.
+
+## Cancer Incidence by State
+
+```{r incidence-plot}
+incidence_data <- cancer_data %>%
+  filter(
+    question == "Invasive cancer (all sites combined), incidence",
+    !is.na(data_value)
+  ) %>%
+  mutate(data_value = as.numeric(data_value))
+
+# Get most recent year per state
+incidence_latest <- incidence_data %>%
+  group_by(location_desc) %>%
+  slice_max(year_start, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# Order and select top/bottom 10
+incidence_ordered <- incidence_latest %>%
+  arrange(desc(data_value))
+
+top_bottom <- bind_rows(
+  slice_head(incidence_ordered, n = 10),
+  slice_tail(incidence_ordered, n = 10)
+) %>%
+  mutate(location_desc = reorder(location_desc, data_value))
+
+ggplot(top_bottom, aes(x = data_value, y = location_desc)) +
+  geom_col() +
+  labs(
+    title = "States with Highest and Lowest Invasive Cancer Incidence Rates",
+    subtitle = "Most recent available year",
+    x = "Incidence rate (per 100,000 population)",
+    y = "State"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+Figure 1 displays the ten states with the highest and lowest invasive cancer incidence rates (all sites combined) in the most recent available year. Rates are expressed per 100,000 population. The figure highlights meaningful geographic variation in cancer burden, with some states consistently exhibiting higher incidence rates than others. This variation may reflect differences in demographic composition, risk factor prevalence, screening rates, or access to healthcare services across states.
