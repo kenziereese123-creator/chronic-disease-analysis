@@ -1,2 +1,6 @@
-output/report.html: code/analysis.Rmd data/chronic_disease_indicators.csv
-	Rscript -e "rmarkdown::render('code/analysis.Rmd', output_file='../output/report.html')"
+install:
+	Rscript -e "renv::restore()"
+
+output/report.html: code/analysis.Rmd data/U.S._Chronic_Disease_Indicators.csv
+	Rscript -e "rmarkdown::render('code/analysis.Rmd')"
+	

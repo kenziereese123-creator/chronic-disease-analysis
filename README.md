@@ -10,6 +10,17 @@ make
 ```
 This will knit the R Markdown file and generate the final report at `output/report.html`.
 
+## How to Synchronize the Package Environment
+This project uses [`renv`](https://rstudio.github.io/renv/) to manage R package dependencies. 
+
+To restore the exact package versions used in this analysis, run:
+
+```
+make install
+```
+
+This will call `renv::restore()`, which installs all packages listed in `renv.lock`.
+
 ## Repository Contents
 - `data/` — contains the raw dataset (`chronic_disease_indicators.csv`) downloaded from the CDC
 - `code/` — contains the R Markdown source file (`analysis.Rmd`)
