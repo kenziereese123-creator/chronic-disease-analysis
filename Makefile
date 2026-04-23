@@ -1,3 +1,5 @@
+.PHONY: report
+
 install:
 	Rscript -e "renv::restore()"
 
